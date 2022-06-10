@@ -17,37 +17,50 @@ const { PORT } = process.env
 const port = process.env.PORT || PORT 
 
 
-app.get("/haddlemodel", async (req, res) => {
+app.post("/haddlemodel", async (req, res) => {
     
     let result= []
 
     // เลือก path json ของ voice //
-    const emotionVoice = require("../AI_neural_network/scg-use-model-voice/sentiment.json");
+    const RawemotionVoice = fs.readFileSync("../version_api_post/sentiment.json");
+    const RawemotionVideo = fs.readFileSync("../version_api_post/video_emotion.json");
 
-    let emotionVideo = fs.readFileSync("../AI_neural_network/scg-use-model-video/test_emotion.txt","utf8");
+    const emotionVoice = JSON.parse(RawemotionVoice);
+    const emotionVideo = JSON.parse(RawemotionVideo);
+
+    // ==== old version ==== //
+    // let emotionVideo = fs.readFileSync("../AI_neural_network/scg-use-model-video/test_emotion.txt","utf8");
     // let emotionVocie = fs.readFileSync("../AI_neural_network/scg-use-model-voice/emotion_voice.txt","utf8");
+   // ==== end old version ==== // 
+
     let userid = fs.readFileSync("./userid.txt","utf8");
     let username = fs.readFileSync("./username.txt","utf8");
     let email = fs.readFileSync("./email.txt","utf8");
     let phone = fs.readFileSync("./phone.txt", "utf8");
     let address =fs.readFileSync("./address.txt","utf8");
     // console.log("readFileSync")
-    // console.log("sending ==>", emotionVideo, emotionVocie, userid, username, email,  phone, address)
-
-
-
+ 
     try{
         const payLoad = {
+            // user data //
             uid:userid, 
             name:username, 
             email:email, 
             phone:phone, 
             address:address, 
+
+            // voice data //
             voiceWord:emotionVoice.word,
             voiceScore:emotionVoice.sentiment_score,
             voiceMagnitude:emotionVoice.sentiment_magnitude,
             voiceMood:emotionVoice.feeling, 
-            faceMood:emotionVideo
+            
+            // video data //
+            faceAnger:emotionVideo.anger,
+            faceJoy:emotionVideo.joy,
+            faceSurprise:emotionVideo.surprise,
+            faceSorrow:emotionVideo.sorrow,
+            faceMood:emotionVideo.highest_emotion
         }
         const headerConfig = {
             headers:{
@@ -58,12 +71,19 @@ app.get("/haddlemodel", async (req, res) => {
         // setting uri // 
         // console.log("await")
     
-        axios.post("http://167.71.215.3:80/db/write",payLoad,headerConfig)
-    
-        result.push(emotionVideo)
+        axios.post("http://167.71.215.3:80/db/write",payLoad,headerConfig);
+        
+        // debug mode // 
+        // result.push(payLoad)
+        // production mode //
+
+        // console.log("payLoad ==>", payLoad)
+        // console.log("emotionVideo.highest_emotion ==>",emotionVideo.highest_emotion)
+
+        result.push("Face emotion: " + emotionVideo.highest_emotion)
         res.send(result)
     }catch(err){
-        result.push("connecting to module")
+        result.push("fail to connecting to database!")
         res.send(result)
     }
 
@@ -74,23 +94,22 @@ app.get("/haddlemodelvoice", async (req, res) => {
     let result = []
     
     try{
-        const emotionVoice = require("../AI_neural_network/scg-use-model-voice/sentiment.json");
-        console.log("emotionVoice ==>", emotionVoice);
+        const RawemotionVoice = fs.readFileSync("../version_api_post/sentiment.json");
+        const emotionVoice = JSON.parse(RawemotionVoice);
         const emotionFeel = emotionVoice.feeling;
-        // let emotionVoice = fs.readFileSync("../AI_neural_network/scg-use-model-voice/emotion_voice.txt","utf8");
-    
-        // console.log("sending ===> ",emotionVideo.length, emotionVoice.length, emotionVideo, emotionVoice)
-        // const emptyfill = "null"
+ 
         if(emotionFeel === undefined){
             // console.log("null")
             const nullDetect = "Hello User";
             result.push(nullDetect);
             res.send(result);
+
         }else{
             // console.log("none null ===> ", emotionVideo, emotionVoice)
-            result.push(emotionFeel);
+            result.push("Voice emotion: "+ emotionFeel);
             res.send(result);
         }
+
     }catch(err){
         console.log(err);
         result.push("connecting to module...");
@@ -100,7 +119,7 @@ app.get("/haddlemodelvoice", async (req, res) => {
 
 app.post("/mirror_register", async (req, res) => {
     const {userid, username, email, phone, address} = req.body; 
-    console.log(userid, username, email, phone, address)
+    // console.log(userid, username, email, phone, address)
 
     try{
         
@@ -123,49 +142,54 @@ app.post("/mirror_register", async (req, res) => {
         }
         res.send(replyResult);
     }
-
-
 })
 
+// api manage parameter page //
 
-app.get("/testing", (req, res) => {
-    console.log("ok")
-    let emotionVideo = fs.readFileSync("../AI_neural_network/scg-use-model-video/test_emotion.txt","utf8");
-    let emotionVocie = fs.readFileSync("../AI_neural_network/scg-use-model-voice/emotion_voice.txt","utf8");
-    let userid = fs.readFileSync("./userid.txt","utf8");
-    let username = fs.readFileSync("./username.txt","utf8");
-    let email = fs.readFileSync("./email.txt","utf8");
-    let phone = fs.readFileSync("./phone.txt", "utf8");
-    let address =fs.readFileSync("./address.txt","utf8");
-    console.log("readFileSync")
-    console.log("sending ==>", emotionVideo, emotionVocie, userid, username, email,  phone, address)
+app.get("/getparam", async (req, res) => {
+    const isThreshold = fs.readFileSync("../version_api_post/my_threshold.json");
+    res.send(isThreshold);
+})
 
-    const payLoad = {
-        uid:userid, 
-        name:username, 
-        email:email, 
-        phone:phone, 
-        address:address, 
-        voiceMood:emotionVocie, 
-        faceMood:emotionVideo
-    }
-    const headerConfig = {
-        headers:{
-            'Content-Type': 'application/json',
-        }
-    }
+app.post("/changeparam", async (req, res) => {
+
+    const { videoDuration, voiceDuration, voiceMin, voiceMax, isDefault }  = req.body;
     
-    // setting uri // 
-    // console.log("await")
+    if(isDefault === true){
+        const defaultParam = {
+            video_duration:Number(videoDuration),
+            voice_duration:Number(voiceDuration),
+            voice_min_threshold: Number(voiceMin),
+            voice_max_threshold:Number(voiceMax)
+        }
+        try{
+            const convertToSting = JSON.stringify(defaultParam)
+            fs.writeFileSync("../version_api_post/my_threshold.json", convertToSting);
+        }catch(err){
+            console.log(err);
+        }
+        
+    }
+    else{
+        try{
+            const defaultParam = {
+                video_duration:Number(videoDuration),
+                voice_duration:Number(voiceDuration),
+                voice_min_threshold:Number(voiceMin),
+                voice_max_threshold:Number(voiceMax)
+            }
 
-    axios.post("http://localhost:80/db/write",payLoad,headerConfig).
-    then(response => {
-        console.log("result", response.data);
-    });
+            // console.log("defaultParam ===> ",defaultParam);
 
-    res.send(emotionVideo)
+            const convertToSting = JSON.stringify(defaultParam)
+                fs.writeFileSync("../version_api_post/my_threshold.json", convertToSting);
+        }catch(err){
+            console.log(err)
+        }
+        
+    }
+
 })
-
 
 
 app.listen(port, () => {
